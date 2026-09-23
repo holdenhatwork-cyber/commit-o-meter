@@ -36,16 +36,23 @@ jobs:
         run: |
           git config user.name  "commit-o-meter bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Ignore generatedAt-only churn so quiet periods don't spam the history.
-          if git diff --quiet -- data/overseer.json; then
+
+          # Stage first: on the very first run the file is untracked, and plain
+          # `git diff` reports no change for untracked files.
+          git add data/overseer.json
+          if git diff --cached --quiet; then
             echo "No change."
             exit 0
           fi
-          if [ -z "$(git diff -- data/overseer.json | grep -E '^[+-]' | grep -vE '^[+-]{3}' | grep -v 'generatedAt')" ]; then
+
+          # Ignore generatedAt-only churn so quiet periods don't spam the history.
+          changed=$(git diff --cached -U0 -- data/overseer.json \
+            | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' | grep -v 'generatedAt' || true)
+          if [ -z "$changed" ]; then
             echo "Only the timestamp moved; skipping commit."
-            git checkout -- data/overseer.json
+            git restore --staged data/overseer.json
             exit 0
           fi
-          git add data/overseer.json
+
           git commit -m "Refresh overseer snapshot [skip ci]"
           git push
