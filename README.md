@@ -1,5 +1,7 @@
 # Commit-o-meter
 
+**Live: <https://holdenhatwork-cyber.github.io/commit-o-meter/>**
+
 A fun, zero-backend dashboard that answers one question: **how much code has this team actually shipped?**
 
 Point it at a GitLab or GitHub repository and it draws an odometer of total commits, a

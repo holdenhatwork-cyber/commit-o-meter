@@ -63,7 +63,13 @@
 
       <div class="odometer-block">
         <p class="odometer-label" id="odometerLabel">Total commits</p>
-        <div id="odometer" class="odometer">0</div>
+        <div id="gauge" class="gauge"></div>
+        <p id="milestoneLine" class="milestone-line"></p>
+        <div class="gauge-actions" id="gaugeActions">
+          <button id="refreshBtn" type="button" class="ghost small">Refresh now</button>
+          <label class="live-toggle"><input type="checkbox" id="liveToggle"> Watch it climb</label>
+          <span id="sinceLine" class="since-line"></span>
+        </div>
         <p id="rankLine" class="rank-line"></p>
       </div>
 

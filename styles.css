@@ -141,12 +141,33 @@ a { color: var(--accent); }
 .repo-name { font-size:18px; font-weight:660; text-decoration:none; letter-spacing:-.015em; word-break:break-word; }
 .repo-name:hover { text-decoration:underline; }
 .repo-desc { margin:3px 0 0; color:var(--text-secondary); font-size:14px; }
-.odometer-block { text-align:center; padding-block:26px 6px; }
-.odometer-label { margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-.odometer {
-  font-size: clamp(52px, 13vw, 104px); font-weight:700; line-height:1;
-  letter-spacing:-.04em; font-variant-numeric: tabular-nums; color:var(--accent);
+.odometer-block { text-align:center; padding-block:22px 6px; }
+.odometer-label { margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+
+/* ---------- gauge ---------- */
+.gauge { max-width:520px; margin:0 auto; }
+.gauge svg { display:block; width:100%; height:auto; overflow:visible; }
+.gauge-track { fill:none; stroke:var(--grid); stroke-linecap:round; }
+.gauge-fill  { fill:none; stroke:var(--accent); stroke-linecap:round; }
+.gauge-value { fill:var(--accent); font-weight:700; letter-spacing:-.03em; text-anchor:middle; font-variant-numeric:tabular-nums; }
+.gauge-unit  { fill:var(--muted); text-anchor:middle; letter-spacing:.09em; }
+.gauge-tick  { fill:var(--muted); font-size:15px; text-anchor:middle; font-variant-numeric:tabular-nums; }
+.gauge-tick-mark { stroke:var(--axis); stroke-width:2; }
+.gauge-needle { stroke:var(--text-primary); stroke-width:5; stroke-linecap:round; }
+.gauge-hub { fill:var(--text-primary); }
+.gauge-goal { fill:var(--s2); }
+.gauge-goal-text { fill:var(--s2); font-size:15px; font-weight:600; text-anchor:middle; }
+
+.milestone-line { margin:6px 0 0; font-size:15px; color:var(--text-secondary); }
+.milestone-line strong { color:var(--text-primary); font-variant-numeric:tabular-nums; }
+.gauge-actions {
+  display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center;
+  justify-content:center; margin-top:14px;
 }
+.live-toggle { display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--text-secondary); cursor:pointer; }
+.live-toggle input { accent-color:var(--accent); cursor:pointer; }
+.since-line { font-size:13.5px; font-weight:600; color:var(--adds); font-variant-numeric:tabular-nums; }
+.gauge-actions[hidden] { display:none; }
 .rank-line { margin:12px 0 0; font-size:15px; color:var(--text-secondary); }
 .rank-line strong { color:var(--text-primary); }
 .mini-facts {

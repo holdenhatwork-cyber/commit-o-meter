@@ -738,19 +738,92 @@
     return out;
   }
 
-  /* ------------------------------------------------------------------ render */
-  var lastModel = null, odoTimer = null;
+  /* ------------------------------------------------------------------ gauge */
+  // The next round number above n — the thing the team is pushing towards.
+  function nextMilestone(n) {
+    if (n < 10) return 10;
+    var mag = Math.pow(10, Math.floor(Math.log10(n)));
+    var steps = [1, 2, 2.5, 5, 10];
+    for (var i = 0; i < steps.length; i++) {
+      var t = steps[i] * mag;
+      if (t > n) return Math.round(t);
+    }
+    return Math.round(10 * mag);
+  }
 
-  function animateOdometer(el, target) {
+  var GA = { cx: 310, cy: 300, R: 232, SW: 26 };
+
+  function gaugePoint(f, r) {
+    var a = Math.PI * (1 - f);
+    return [GA.cx + r * Math.cos(a), GA.cy - r * Math.sin(a)];
+  }
+  function gaugeArcPath(f, r) {
+    f = Math.max(0, Math.min(1, f));
+    var p0 = gaugePoint(0, r), p1 = gaugePoint(f, r);
+    if (f <= 0.0005) return 'M' + p0[0] + ',' + p0[1];
+    // The sweep is f * 180°, so it never exceeds a half turn: large-arc is always 0.
+    return 'M' + p0[0] + ',' + p0[1] + ' A' + r + ',' + r + ' 0 0 1 ' + p1[0] + ',' + p1[1];
+  }
+
+  function buildGauge(target) {
+    var R = GA.R, cx = GA.cx, cy = GA.cy;
+    var s = '<svg viewBox="0 0 620 350" preserveAspectRatio="xMidYMid meet" role="img" ' +
+      'aria-label="Commit gauge" id="gaugeSvg">';
+
+    s += '<path class="gauge-track" stroke-width="' + GA.SW + '" d="' + gaugeArcPath(1, R) + '"/>';
+    s += '<path class="gauge-fill" id="gaugeArc" stroke-width="' + GA.SW + '" d="' + gaugeArcPath(0, R) + '"/>';
+
+    // scale ticks
+    for (var i = 0; i <= 5; i++) {
+      var f = i / 5;
+      var a = gaugePoint(f, R - GA.SW / 2 - 6), b = gaugePoint(f, R - GA.SW / 2 - 18);
+      s += '<line class="gauge-tick-mark" x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
+      var lp = gaugePoint(f, R - GA.SW / 2 - 40);
+      s += '<text class="gauge-tick" x="' + lp[0] + '" y="' + (lp[1] + 5) + '">' + compact(target * f) + '</text>';
+    }
+
+    // the goal marker sits at the top of the scale
+    var gp = gaugePoint(1, R + GA.SW / 2 + 14);
+    s += '<circle class="gauge-goal" cx="' + gp[0] + '" cy="' + gp[1] + '" r="5"/>';
+    s += '<text class="gauge-goal-text" x="' + (gp[0] - 4) + '" y="' + (gp[1] + 26) + '">GOAL</text>';
+
+    s += '<text class="gauge-value" id="gaugeValue" x="' + cx + '" y="' + (cy - 78) + '" font-size="86">0</text>';
+    s += '<text class="gauge-unit" id="gaugeUnit" x="' + cx + '" y="' + (cy - 38) + '" font-size="17">COMMITS</text>';
+
+    s += '<g id="gaugeNeedle" transform="rotate(0,' + cx + ',' + cy + ')">' +
+      '<line class="gauge-needle" x1="' + (cx + 30) + '" y1="' + cy + '" x2="' + (cx - (R - 46)) + '" y2="' + cy + '"/>' +
+      '</g>';
+    s += '<circle class="gauge-hub" cx="' + cx + '" cy="' + cy + '" r="11"/>';
+
+    return s + '</svg>';
+  }
+
+  /* ------------------------------------------------------------------ render */
+  var lastModel = null, odoTimer = null, shownValue = 0;
+
+  function paintGauge(value, target) {
+    var arc = $('gaugeArc'), needle = $('gaugeNeedle'), txt = $('gaugeValue');
+    if (!arc) return;
+    var f = Math.max(0, Math.min(1, value / target));
+    arc.setAttribute('d', gaugeArcPath(f, GA.R));
+    needle.setAttribute('transform', 'rotate(' + (f * 180) + ',' + GA.cx + ',' + GA.cy + ')');
+    txt.textContent = num(value);
+    // keep the headline number inside the dial at any magnitude
+    txt.setAttribute('font-size', String(num(value).length > 8 ? 58 : num(value).length > 6 ? 70 : 86));
+  }
+
+  function animateGauge(from, to, target) {
     if (odoTimer) cancelAnimationFrame(odoTimer);
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      el.textContent = num(target); return;
+      paintGauge(to, target); shownValue = to; return;
     }
     var start = performance.now(), dur = 1400;
     (function step(now) {
       var p = Math.min(1, (now - start) / dur);
       var eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = num(Math.round(target * eased));
+      var v = Math.round(from + (to - from) * eased);
+      paintGauge(v, target);
+      shownValue = v;
       if (p < 1) odoTimer = requestAnimationFrame(step);
     })(start);
   }
@@ -772,7 +845,34 @@
     $('repoDesc').textContent = r.desc || '';
 
     $('odometerLabel').textContent = 'Total commits' + (r.branch ? ' on ' + r.branch : '');
-    animateOdometer($('odometer'), m.totalCommits);
+
+    var target = nextMilestone(m.totalCommits);
+    var rebuild = !$('gaugeSvg') || String(target) !== $('gauge').getAttribute('data-target');
+    if (rebuild) {
+      $('gauge').innerHTML = buildGauge(target);
+      $('gauge').setAttribute('data-target', String(target));
+      shownValue = 0;
+    }
+    $('gaugeSvg').setAttribute('aria-label',
+      num(m.totalCommits) + ' commits, ' + num(target) + ' is the next milestone');
+    animateGauge(shownValue, m.totalCommits, target);
+
+    var togo = target - m.totalCommits;
+    $('milestoneLine').innerHTML = togo > 0
+      ? '🎯 <strong>' + num(togo) + '</strong> more ' + plural(togo, 'commit') +
+        ' to reach <strong>' + num(target) + '</strong>'
+      : '🎉 <strong>' + num(target) + '</strong> smashed — next stop <strong>' +
+        num(nextMilestone(target)) + '</strong>';
+
+    // "Watch it climb" only makes sense when there is something to re-poll
+    var liveable = m.source !== 'git log' && !!session.input;
+    $('gaugeActions').hidden = !liveable;
+    if (!liveable) stopLive();
+
+    if (session.baseline == null) session.baseline = m.totalCommits;
+    var gained = m.totalCommits - session.baseline;
+    $('sinceLine').textContent = gained > 0
+      ? '+' + num(gained) + ' since you opened this' : '';
 
     var rank = rankFor(m.totalCommits);
     $('rankLine').innerHTML = rank[0] + ' <strong>' + esc(rank[1]) + '</strong> — ' + esc(m.sourceNote);
@@ -910,6 +1010,46 @@
   }
 
   /* ------------------------------------------------------------------ run */
+  var session = { input: null, target: null, baseline: null, timer: null };
+  var LIVE_INTERVAL = 90000;
+
+  function stopLive() {
+    if (session.timer) { clearInterval(session.timer); session.timer = null; }
+    if ($('liveToggle')) $('liveToggle').checked = false;
+  }
+
+  // A quiet re-fetch: same repo, no spinner, no scroll — just nudge the needle.
+  function refresh(silent) {
+    if (!session.target) return;
+    var btn = $('refreshBtn');
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+    var loader = session.target.kind === 'github' ? loadGitHub : loadGitLab;
+    loader(session.target, function () { /* stay quiet during a refresh */ })
+      .then(function (m) {
+        m.query = session.input;
+        render(m);
+      })
+      .catch(function (err) {
+        console.error(err);
+        if (!silent) explainFailure(err, session.target);
+        else stopLive();               // a failing poll should not nag forever
+      })
+      .then(function () {
+        btn.disabled = false;
+        btn.textContent = 'Refresh now';
+      });
+  }
+
+  $('refreshBtn').addEventListener('click', function () { refresh(false); });
+  $('liveToggle').addEventListener('change', function () {
+    if (this.checked) {
+      session.timer = setInterval(function () { refresh(true); }, LIVE_INTERVAL);
+    } else {
+      stopLive();
+    }
+  });
+
   function run(input, pushUrl) {
     var t = parseTarget(input);
     if (!t) {
@@ -920,6 +1060,12 @@
     }
     $('dashboard').hidden = true;
     setBusy('Warming up the odometer…');
+
+    stopLive();                                  // a new repo starts a new count
+    session.input = input;
+    session.target = t;
+    session.baseline = null;
+    shownValue = 0;
 
     if (pushUrl) {
       var url = location.pathname + '?repo=' + encodeURIComponent(input);
@@ -962,6 +1108,9 @@
     try {
       var m = parseGitLog($('pasteInput').value);
       history.replaceState(null, '', location.pathname);
+      stopLive();
+      session.input = null; session.target = null; session.baseline = null;
+      shownValue = 0;
       render(m);
       $('dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
