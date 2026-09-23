@@ -1,0 +1,31 @@
+# Throwaway probe: can a GitHub-hosted runner reach the Nortal GitLab at all?
+# No token is used — an HTTP 401/404 still proves the network path works,
+# whereas a timeout or DNS failure means this approach is dead.
+name: GitLab reachability probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve DNS
+        run: |
+          echo "--- dig ---"
+          dig +short gitlab.nortal.com || true
+
+      - name: Try the API (no credentials)
+        run: |
+          echo "--- curl ---"
+          code=$(curl -s -o /tmp/body.txt -w "%{http_code}" --max-time 25 \
+            "https://gitlab.nortal.com/api/v4/projects/Anton.Zatkin%2Fempis-overseer" || echo "CURL_FAILED")
+          echo "HTTP status: $code"
+          echo "Body (first 200 chars):"
+          head -c 200 /tmp/body.txt || true
+          echo ""
+          if [ "$code" = "CURL_FAILED" ]; then
+            echo "RESULT: unreachable from GitHub runners"
+            exit 1
+          fi
+          echo "RESULT: reachable (status $code)"
