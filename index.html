@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commit-o-meter</title>
+<meta name="description" content="Point it at a GitLab or GitHub repo and find out how much code your team has actually shipped.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="./" aria-label="Commit-o-meter home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M4 24a12 12 0 1 1 24 0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M16 24 25 13" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="16" cy="24" r="2.5" fill="currentColor"/>
+      </svg>
+      <span>Commit<span class="brand-dim">-o-</span>meter</span>
+    </a>
+    <button id="themeToggle" class="icon-btn" type="button" aria-label="Toggle colour theme" title="Toggle colour theme">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 13a9 9 0 1 1-10-10 7 7 0 0 0 10 10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero-search" id="searchPanel">
+    <h1 class="tagline">How much code has your team <em>actually</em> shipped?</h1>
+    <p class="sub">Point it at a GitLab or GitHub repo and watch the numbers climb.</p>
+
+    <form id="repoForm" class="search">
+      <label class="sr-only" for="repoInput">Repository URL</label>
+      <input id="repoInput" name="repo" type="text" spellcheck="false" autocomplete="off"
+             placeholder="https://gitlab.nortal.com/group/project  ·  or  facebook/react" required>
+      <button type="submit" class="go">Measure it</button>
+    </form>
+
+    <div class="examples">
+      <span>Try:</span>
+      <button class="chip primary" data-repo="https://gitlab.nortal.com/Anton.Zatkin/empis-overseer">empis-overseer</button>
+      <button class="chip" data-repo="facebook/react">facebook/react</button>
+      <button class="chip" data-repo="rust-lang/rust">rust-lang/rust</button>
+      <button class="chip" data-repo="ohmyzsh/ohmyzsh">ohmyzsh/ohmyzsh</button>
+    </div>
+  </section>
+
+  <section id="status" class="status" hidden aria-live="polite"></section>
+
+  <section id="dashboard" hidden>
+
+    <div class="card hero-card">
+      <div class="hero-repo">
+        <img id="ownerAvatar" class="avatar" alt="" width="44" height="44" hidden>
+        <div>
+          <a id="repoName" class="repo-name" href="#" target="_blank" rel="noopener"></a>
+          <p id="repoDesc" class="repo-desc"></p>
+        </div>
+      </div>
+
+      <div class="odometer-block">
+        <p class="odometer-label" id="odometerLabel">Total commits</p>
+        <div id="odometer" class="odometer">0</div>
+        <p id="rankLine" class="rank-line"></p>
+      </div>
+
+      <dl class="mini-facts" id="miniFacts"></dl>
+    </div>
+
+    <h2 class="section-h">The damage report</h2>
+    <div class="tiles" id="tiles"></div>
+
+    <h2 class="section-h">Put another way&hellip;</h2>
+    <div class="fun-grid" id="funGrid"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Commits per week</h3>
+        <p class="card-sub" id="timelineSub"></p>
+      </div>
+      <div id="timelineChart" class="chart"></div>
+    </div>
+
+    <div class="card" id="churnCard">
+      <div class="card-head">
+        <h3>Lines added vs. deleted</h3>
+        <p class="card-sub">Additions rise above the line, deletions fall below it.</p>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><i class="swatch" style="background:var(--adds)"></i>Added</span>
+        <span class="legend-item"><i class="swatch" style="background:var(--dels)"></i>Deleted</span>
+      </div>
+      <div id="churnChart" class="chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>The last 12 months, day by day</h3>
+        <p class="card-sub" id="heatSub">Each square is a day, shaded by how many commits landed.</p>
+      </div>
+      <div id="heatmap" class="chart heat"></div>
+      <div class="heat-legend"><span>Quiet</span><i data-l="0"></i><i data-l="1"></i><i data-l="2"></i><i data-l="3"></i><i data-l="4"></i><span>Busy</span></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head">
+          <h3>Top committers</h3>
+          <p class="card-sub" id="contribSub"></p>
+        </div>
+        <div id="leaderboard"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Written in</h3>
+          <p class="card-sub" id="langSub"></p>
+        </div>
+        <div id="langBar"></div>
+        <ul id="langList" class="lang-list"></ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Awards ceremony</h3></div>
+      <div class="awards" id="awards"></div>
+    </div>
+
+    <details class="card table-toggle">
+      <summary>Show the numbers as a table</summary>
+      <div id="dataTable" class="table-scroll"></div>
+    </details>
+
+    <p class="share-line">Shareable link: <a id="shareLink" href="#"></a></p>
+  </section>
+
+  <details class="card panel" id="tokenCard">
+    <summary>Private repo or rate-limited? Add an access token</summary>
+    <p class="fine">
+      Tokens are stored per host in this browser's <code>localStorage</code> and sent only to that host's
+      API &mdash; never to the server this page is hosted on. For GitLab create a personal access token
+      with the <code>read_api</code> scope; for GitHub a classic token with <em>no scopes</em> is enough
+      to lift the 60-calls-per-hour anonymous limit to 5,000.
+    </p>
+    <div class="token-row">
+      <input id="tokenHost" type="text" spellcheck="false" autocomplete="off" placeholder="Host, e.g. gitlab.nortal.com">
+      <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="Access token">
+      <button id="tokenSave" type="button" class="go small">Save</button>
+      <button id="tokenClear" type="button" class="ghost small">Clear</button>
+    </div>
+    <p class="fine" id="tokenState"></p>
+  </details>
+
+  <details class="card panel" id="pasteCard">
+    <summary>Offline mode &mdash; paste a <code>git log</code> instead</summary>
+    <p class="fine">
+      Works for <strong>any</strong> repo, public or private, with no token and no network access to the
+      server &mdash; useful if a corporate GitLab blocks cross-origin browser calls. Run this in a clone of
+      the repo and paste the output below.
+    </p>
+    <pre class="cmd" id="cmdBox"></pre>
+    <button id="copyCmd" type="button" class="ghost small">Copy command</button>
+    <label class="sr-only" for="pasteInput">git log output</label>
+    <textarea id="pasteInput" class="paste" spellcheck="false" placeholder="Paste the full output here…"></textarea>
+    <div class="token-row">
+      <button id="pasteRun" type="button" class="go small">Build the dashboard</button>
+    </div>
+  </details>
+
+</main>
+
+<footer class="wrap foot">
+  <p>Built for a hackathon. Everything runs in your browser &mdash; no server, no database, nothing stored.</p>
+  <p id="rateLine" class="fine"></p>
+</footer>
+
+<div id="tooltip" class="tooltip" role="status" aria-live="off" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
