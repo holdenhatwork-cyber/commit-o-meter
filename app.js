@@ -1098,16 +1098,22 @@
     var snapUrl = SNAPSHOTS[t.host + '/' + t.path];
 
     // A published snapshot lets teammates open the page with no token at all.
-    // Anyone who has stored their own token gets the live data instead, and a
-    // missing snapshot falls back rather than dead-ending.
-    session.load = (snapUrl && !getToken(t.host))
-      ? function (p) {
-          return loadSnapshot(snapUrl, p).catch(function (e) {
-            console.warn('Snapshot unavailable, using the live API:', e.message);
-            return live(p);
-          });
-        }
-      : live;
+    // Whichever source is preferred, the other is the fallback — so a missing
+    // snapshot or an expired stored token degrades instead of dead-ending.
+    function withFallback(first, second, why) {
+      return function (p) {
+        return first(p).catch(function (e) {
+          console.warn(why, e.message);
+          return second(p);
+        });
+      };
+    }
+    session.load = !snapUrl ? live
+      : getToken(t.host)
+        ? withFallback(live, function (p) { return loadSnapshot(snapUrl, p); },
+            'Live API failed, falling back to the shared snapshot:')
+        : withFallback(function (p) { return loadSnapshot(snapUrl, p); }, live,
+            'Snapshot unavailable, falling back to the live API:');
 
     session.load(setBusy).then(function (m) {
       m.query = input;
