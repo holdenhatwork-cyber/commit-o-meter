@@ -1,0 +1,51 @@
+name: Refresh overseer snapshot
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'      # every 30 minutes (GitHub may delay this under load)
+  workflow_dispatch:             # and on demand, e.g. right before a demo
+
+concurrency:
+  group: refresh-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build the snapshot
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_HOST: gitlab.nortal.com
+          GITLAB_PROJECT: Anton.Zatkin/empis-overseer
+        run: node scripts/fetch-snapshot.mjs
+
+      - name: Verify nothing sensitive is in it
+        run: node scripts/verify-snapshot.mjs data/overseer.json
+
+      - name: Commit if it changed
+        run: |
+          git config user.name  "commit-o-meter bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Ignore generatedAt-only churn so quiet periods don't spam the history.
+          if git diff --quiet -- data/overseer.json; then
+            echo "No change."
+            exit 0
+          fi
+          if [ -z "$(git diff -- data/overseer.json | grep -E '^[+-]' | grep -vE '^[+-]{3}' | grep -v 'generatedAt')" ]; then
+            echo "Only the timestamp moved; skipping commit."
+            git checkout -- data/overseer.json
+            exit 0
+          fi
+          git add data/overseer.json
+          git commit -m "Refresh overseer snapshot [skip ci]"
+          git push

@@ -51,6 +51,49 @@ leaves your machine.
 Offline mode is in some ways the *better* source — it reads every commit directly, whereas
 GitHub declines to report per-line statistics for very large repositories.
 
+## Shared snapshots (private projects, no token for teammates)
+
+A private project can be published as a static snapshot so anyone on the team can
+open the page and see it without a token of their own.
+
+`.github/workflows/refresh-data.yml` runs every 30 minutes on a GitHub runner. It
+executes `scripts/fetch-snapshot.mjs`, which reads the `GITLAB_TOKEN` repository
+secret, calls the GitLab API and writes `data/overseer.json`. The front end loads
+that file instead of calling GitLab, unless the viewer has stored their own token —
+in which case they get live data.
+
+**The token never reaches a browser.** It is decrypted only inside the runner.
+
+### What the snapshot contains, and what it cannot
+
+The snapshot is *constructed* from named fields, never filtered or spread from the
+API response. It contains only: commit counts, dates, lines added/deleted, author
+display names, and language percentages.
+
+It cannot contain source code — the only endpoints called are `/repository/commits`
+with `with_stats=true` (which returns counts, not diffs) and `/languages`. No blob,
+tree, file or diff endpoint is ever requested.
+
+It must not contain commit messages, titles, SHAs, e-mail addresses or credentials.
+`scripts/verify-snapshot.mjs` re-reads the finished file and fails the build if any
+appear. It enforces a strict key allowlist, so a future change that starts copying
+extra API fields through breaks the build rather than publishing quietly.
+
+To point it at a different project, change `GITLAB_HOST` / `GITLAB_PROJECT` in the
+workflow and the matching entry in the `SNAPSHOTS` map in `app.js`.
+
+### Setting the secret
+
+```
+gh secret set GITLAB_TOKEN --repo <owner>/<repo>
+```
+
+Paste the value when prompted. Use a GitLab **project** access token (Reporter role,
+`read_api` scope) rather than a personal one, so it is scoped to the single project.
+
+Note that `read_api` also grants repository read — there is no stats-only scope in
+GitLab. That is precisely why the token stays server-side.
+
 ## Where the numbers come from
 
 | Source | Commits | Lines added/deleted | Languages |

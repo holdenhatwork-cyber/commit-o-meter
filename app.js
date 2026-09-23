@@ -336,6 +336,29 @@
     });
   }
 
+  /* ---- pre-built snapshots ----
+     A private project whose data a scheduled job publishes as a static file, so
+     teammates can open the page with no token at all. Keyed by host/path. */
+  var SNAPSHOTS = {
+    'gitlab.nortal.com/Anton.Zatkin/empis-overseer': 'data/overseer.json'
+  };
+
+  function loadSnapshot(url, progress) {
+    progress('Loading the shared snapshot…');
+    return fetch(url, { cache: 'no-store' }).then(function (res) {
+      if (!res.ok) throw httpError(res, 'the snapshot');
+      return res.json();
+    }).then(function (m) {
+      var age = Date.now() - (m.generatedAt || 0);
+      var mins = Math.round(age / 60000);
+      m.sourceNote = (m.sourceNote || 'Shared snapshot.') + ' Refreshed ' +
+        (mins < 2 ? 'just now' : mins < 90 ? mins + ' minutes ago'
+          : Math.round(mins / 60) + ' hours ago') + '.';
+      m.isSnapshot = true;
+      return m;
+    });
+  }
+
   /* ---- offline paste mode ---- */
   var GIT_CMD = 'git log --numstat --date=iso-strict --pretty=format:"@|%H|%an|%aI"';
 
@@ -865,7 +888,7 @@
         num(nextMilestone(target)) + '</strong>';
 
     // "Watch it climb" only makes sense when there is something to re-poll
-    var liveable = m.source !== 'git log' && !!session.input;
+    var liveable = m.source !== 'git log' && !!session.load;
     $('gaugeActions').hidden = !liveable;
     if (!liveable) stopLive();
 
@@ -1010,7 +1033,7 @@
   }
 
   /* ------------------------------------------------------------------ run */
-  var session = { input: null, target: null, baseline: null, timer: null };
+  var session = { input: null, target: null, load: null, baseline: null, timer: null };
   var LIVE_INTERVAL = 90000;
 
   function stopLive() {
@@ -1020,12 +1043,11 @@
 
   // A quiet re-fetch: same repo, no spinner, no scroll — just nudge the needle.
   function refresh(silent) {
-    if (!session.target) return;
+    if (!session.load) return;
     var btn = $('refreshBtn');
     btn.disabled = true;
     btn.textContent = 'Checking…';
-    var loader = session.target.kind === 'github' ? loadGitHub : loadGitLab;
-    loader(session.target, function () { /* stay quiet during a refresh */ })
+    session.load(function () { /* stay quiet during a refresh */ })
       .then(function (m) {
         m.query = session.input;
         render(m);
@@ -1072,8 +1094,22 @@
       history.replaceState(null, '', url);
     }
 
-    var loader = t.kind === 'github' ? loadGitHub : loadGitLab;
-    loader(t, setBusy).then(function (m) {
+    var live = (t.kind === 'github' ? loadGitHub : loadGitLab).bind(null, t);
+    var snapUrl = SNAPSHOTS[t.host + '/' + t.path];
+
+    // A published snapshot lets teammates open the page with no token at all.
+    // Anyone who has stored their own token gets the live data instead, and a
+    // missing snapshot falls back rather than dead-ending.
+    session.load = (snapUrl && !getToken(t.host))
+      ? function (p) {
+          return loadSnapshot(snapUrl, p).catch(function (e) {
+            console.warn('Snapshot unavailable, using the live API:', e.message);
+            return live(p);
+          });
+        }
+      : live;
+
+    session.load(setBusy).then(function (m) {
       m.query = input;
       render(m);
       $('dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1109,7 +1145,7 @@
       var m = parseGitLog($('pasteInput').value);
       history.replaceState(null, '', location.pathname);
       stopLive();
-      session.input = null; session.target = null; session.baseline = null;
+      session.input = null; session.target = null; session.load = null; session.baseline = null;
       shownValue = 0;
       render(m);
       $('dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
