@@ -1,0 +1,65 @@
+{
+ "generatedAt": 1790169876228,
+ "source": "GitLab",
+ "sourceNote": "Snapshot of every commit on main.",
+ "repo": {
+  "name": "Anton.Zatkin/empis-overseer",
+  "url": "https://gitlab.nortal.com/Anton.Zatkin/empis-overseer",
+  "desc": null,
+  "avatar": null,
+  "created": 1790156541368,
+  "pushed": 1790168183737,
+  "stars": 0,
+  "branch": "main"
+ },
+ "totalCommits": 52,
+ "adds": 10314,
+ "dels": 924,
+ "weekly": [
+  {
+   "t": 1789862400000,
+   "commits": 52,
+   "adds": 10314,
+   "dels": 924
+  }
+ ],
+ "days": {
+  "2026-09-23": 52
+ },
+ "people": [
+  {
+   "name": "Anton Žatkin",
+   "commits": 31,
+   "adds": 7225,
+   "dels": 588
+  },
+  {
+   "name": "Mart.Kalmus",
+   "commits": 12,
+   "adds": 2372,
+   "dels": 237
+  },
+  {
+   "name": "Holden Karl Hain",
+   "commits": 9,
+   "adds": 717,
+   "dels": 99
+  }
+ ],
+ "languages": [
+  {
+   "name": "Python",
+   "pct": 95.46
+  },
+  {
+   "name": "JavaScript",
+   "pct": 4.43
+  },
+  {
+   "name": "Just",
+   "pct": 0.11
+  }
+ ],
+ "langNote": "Share of tracked bytes, as reported by GitLab.",
+ "truncated": false
+}
